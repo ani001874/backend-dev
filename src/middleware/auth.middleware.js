@@ -3,9 +3,12 @@ import ApiError from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
 const verifyJWT = asyncHandler(async (req, res, next) => {
-   try {
+  
+   
+    try {
+     
      const token =
-         req.cookie?.accessToken ||
+         req.cookies?.accessToken ||
          req.header("Authorization")?.replace("Bearer ", "");
  
      if (!token) {
