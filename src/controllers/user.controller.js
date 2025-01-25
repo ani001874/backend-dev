@@ -254,18 +254,12 @@ const updateAvatar = asyncHandler(async (req, res) => {
         _id: 0,
         avatar: 1,
     });
-    let publicId = existedAvatarFile.avatar
-        .split("/")
-        .pop()
-        .split(".")[0]
-        
-       
+    let publicId = existedAvatarFile.avatar.split("/").pop().split(".")[0];
 
-        console.log(publicId)
+    console.log(publicId);
 
     let isRemoved = await deleteFromCloudinary([publicId]);
 
-    
     if (!isRemoved) {
         throw new ApiError(500, "Exists file does not removed!!!");
     }
@@ -289,7 +283,6 @@ const updateAvatar = asyncHandler(async (req, res) => {
 
 const updateCoverImage = asyncHandler(async (req, res) => {
     let coverImageLoacalPath = req.file?.path;
-    
 
     if (!coverImageLoacalPath) {
         throw new ApiError(404, "New CoverIamge  is required to update..");
@@ -299,8 +292,6 @@ const updateCoverImage = asyncHandler(async (req, res) => {
 
     // Delete Exists avatar file
 
-  
-
     let existedCoverImageFile = await User.findById(req.user?._id, {
         _id: 0,
         coverImage: 1,
@@ -308,16 +299,13 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     let publicId = existedCoverImageFile?.coverImage
         .split("/")
         .pop()
-        .split(".")[0]
-        
-    
+        .split(".")[0];
+
     let isRemoved = await deleteFromCloudinary([publicId]);
 
-    
     if (!isRemoved) {
         throw new ApiError(500, "Exists coverImage  file does not removed!!!");
     }
-
 
     const coverImage = await uploadOnCloudinary(coverImageLoacalPath);
 
@@ -336,6 +324,70 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     );
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+    const { username } = req.params;
+
+    if (!username?.trim()) {
+        throw new ApiError(400, "Username is missing");
+    }
+
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase(),
+            },
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscriber",
+            },
+        },
+
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscriberedTo",
+            },
+        },
+
+        {
+            $addFields: {
+                subscribersCount: {
+                    $size: "$subscriber",
+                },
+                channelSubscribedToCount: {
+                    $size: "$subscriberedTo",
+                },
+
+                isSubscribed: {
+                    $cond: {
+                        if: { $in: [req.user?._id, "$subscriber.subscriber"] },
+                        then: true,
+                        else: false,
+                    },
+                },
+            },
+        },
+        {
+            $project: {
+                fullName: 1,
+                email: 1,
+                username: 1,
+                subscribersCount: 1,
+                channelSubscribedToCount: 1,
+                isSubscribed: 1,
+            },
+        },
+    ]);
+
+    res.status(200).json(new ApiResponse(200, channel));
+});
+
 export {
     registerUser,
     logInUser,
@@ -346,4 +398,5 @@ export {
     updateAccountDetails,
     updateAvatar,
     updateCoverImage,
+    getUserChannelProfile,
 };
