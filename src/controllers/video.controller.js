@@ -1,3 +1,5 @@
+import { mongo } from "mongoose";
+import { Comment } from "../model/commets.model.js";
 import Video from "../model/video.model.js";
 import ApiError from "../utils/apiError.js";
 import ApiResponse from "../utils/apiResponse.js";
@@ -6,12 +8,17 @@ import {
     deleteFromCloudinary,
     uploadOnCloudinary,
 } from "../utils/cloudnary.js";
+import mongoose from "mongoose";
 
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
     //TODO: get all videos based on query, sort, pagination
 
-    const allVideos = await Video.find();
+    const allVideos = await Video.find().populate({
+        path: "owner",
+        select: "username -_id",
+        transform: (doc) => doc.username,
+    });
 
     if (!allVideos) {
         throw new ApiError(500, "Server Error!! Video files does not appear..");
@@ -96,11 +103,8 @@ const updateVideo = asyncHandler(async (req, res) => {
         },
         {
             new: true,
-          
         }
     );
-
- 
 
     res.status(200).json(
         new ApiResponse(
@@ -113,8 +117,8 @@ const updateVideo = asyncHandler(async (req, res) => {
 
 const updateThumbnail = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
-     console.log(req.file);
-     
+    console.log(req.file);
+
     const localThumbnailFile = req.file?.path;
     if (!localThumbnailFile) {
         throw new ApiError(400, "thumbnail file is missing");
@@ -172,6 +176,69 @@ const deleteVideo = asyncHandler(async (req, res) => {
     );
 });
 
+const getAllCommentsOnVideo = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+
+    
+    const allComments = await Video.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(videoId),
+            },
+        },
+        {
+            $lookup: {
+                from: "comments",
+                localField: "_id",
+                foreignField: "video",
+                as: "comments",
+                 pipeline:[
+    
+                    {
+                        $lookup:{
+                            from:"users",
+                            localField:"owner",
+                            foreignField:"_id",
+                            as:"owner",
+                            pipeline: 
+                            [
+                                {
+                                    $project:{
+                                        username:1,
+                                        _id:0
+                                        
+                                    }
+                                }
+                            ]
+
+                        }
+                    }, 
+                 ]
+               
+               
+            },
+        },
+        {
+            $addFields: {
+                commentCount: {
+                    $size:"$comments"
+                }
+            }
+        },
+        {
+            $project: {
+                "comments.comment":1,
+                "comments.owner":1,
+                 commentCount:1
+            },
+        },
+    ]);
+
+    res.status(200).json(
+        new ApiResponse(200, allComments, "all comments are fetched")
+    );
+});
+
 export {
     getAllVideos,
     publishAVideo,
@@ -179,4 +246,5 @@ export {
     updateVideo,
     updateThumbnail,
     deleteVideo,
+    getAllCommentsOnVideo,
 };

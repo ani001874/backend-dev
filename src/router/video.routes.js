@@ -7,6 +7,7 @@ import {
     updateVideo,
     deleteVideo,
     updateThumbnail,
+    getAllCommentsOnVideo,
 } from "../controllers/video.controller.js";
 import { upload } from "../middleware/multer.middleware.js";
 
@@ -31,5 +32,8 @@ videoRouter
     .put(updateVideo)
     .patch(upload.single("thumbnail"),updateThumbnail)
     .delete(deleteVideo);
+
+
+videoRouter.route('/all-comments/:videoId').get(getAllCommentsOnVideo)
 
 export default videoRouter;

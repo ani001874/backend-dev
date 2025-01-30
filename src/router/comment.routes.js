@@ -10,9 +10,13 @@ const commentRouter = Router();
 commentRouter.use(verifyJWT);
 
 commentRouter
-    .route("/")
+    .route("/:videoId")
     .post(addComment)
-    .patch(updateComment)
-    .delete(deleteComment);
+
+commentRouter
+    .route("/:commentId")
+    .put(updateComment)
+    .delete(deleteComment)
+   
 
 export default commentRouter;
